@@ -413,9 +413,10 @@ def do_train(lora_name: str, always_override: bool, save_steps: int, micro_batch
     if WANT_INTERRUPT:
         yield "Interrupted before start."
         return
-        
+
     def log_train_dataset(trainer):
         from datetime import datetime
+        import os
 
         # Get current date and time
         now = datetime.now()
@@ -424,10 +425,14 @@ def do_train(lora_name: str, always_override: bool, save_steps: int, micro_batch
         # Create a log filename with the current date and time
         log_filename = f"train_dataset_log_{date_time}.txt"
 
+        # Ensure the logs directory exists
+        if not os.path.exists('logs'):
+            os.makedirs('logs')
+
         # Create or open a log file in the logs directory
-        with open(f'logs/{log_filename}', 'a') as log_file:
-            # Iterate over the entire dataset
-            for i in range(len(trainer.train_dataset)):
+        with open(os.path.join('logs', log_filename), 'a') as log_file:
+            # Iterate over the first 10 elements in the dataset
+            for i in range(min(10, len(trainer.train_dataset))):
                 # Decode the 'input_ids' from each element in the dataset
                 decoded_text = shared.tokenizer.decode(trainer.train_dataset[i]['input_ids'])
                 # Append the decoded text to the log file
