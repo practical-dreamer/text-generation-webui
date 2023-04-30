@@ -243,8 +243,9 @@ def do_train(lora_name: str, always_override: bool, save_steps: int, micro_batch
         return
 
     gradient_accumulation_steps = batch_size // micro_batch_size
-    shared.tokenizer.pad_token_id = 0
+    shared.tokenizer.pad_token = 0
     shared.tokenizer.padding_side = "left"
+
 
     def tokenize(prompt):
         result = shared.tokenizer(prompt, truncation=True, max_length=cutoff_len + 1, padding="max_length")
@@ -302,6 +303,7 @@ def do_train(lora_name: str, always_override: bool, save_steps: int, micro_batch
         print("Loading JSON datasets...")
         data = load_dataset("json", data_files=clean_path('training/datasets', f'{dataset}.json'))
         train_data = data['train'].map(generate_and_tokenize_prompt)
+        print("loaded")
 
         if eval_dataset == 'None':
             eval_data = None
@@ -411,8 +413,33 @@ def do_train(lora_name: str, always_override: bool, save_steps: int, micro_batch
     if WANT_INTERRUPT:
         yield "Interrupted before start."
         return
+        
+    def log_train_dataset(trainer):
+        from datetime import datetime
+
+        # Get current date and time
+        now = datetime.now()
+        date_time = now.strftime("%Y%m%d_%H%M%S")
+
+        # Create a log filename with the current date and time
+        log_filename = f"train_dataset_log_{date_time}.txt"
+
+        # Create or open a log file in the logs directory
+        with open(f'logs/{log_filename}', 'a') as log_file:
+            # Iterate over the entire dataset
+            for i in range(len(trainer.train_dataset)):
+                # Decode the 'input_ids' from each element in the dataset
+                decoded_text = shared.tokenizer.decode(trainer.train_dataset[i]['input_ids'])
+                # Append the decoded text to the log file
+                log_file.write(decoded_text)
+                # Add separator line
+                log_file.write("\n---------------🦙TRAINER LOG DIVIDER😉---------------\n")
+
+        # Print log file creation confirmation
+        print(f"Log file '{log_filename}' created in the 'logs' directory. 🦙😉")
 
     def threaded_run():
+        log_train_dataset(trainer)
         trainer.train()
         # Note: save in the thread in case the gradio thread breaks (eg browser closed)
         lora_model.save_pretrained(lora_file_path)
