@@ -142,14 +142,19 @@ class ExllamaModel:
             prompts = [prompt, state['negative_prompt'] or '']
 
             ids, mask = self.tokenizer.encode(prompts, return_mask=True)
+
+            # Truncate if the sequence exceeds 2048 tokens
+            if ids[0].shape[-1] > 2048:
+                ids = [id_seq[:, -2048:] for id_seq in ids]
+                mask = [mask_seq[:, -2048:] for mask_seq in mask]
+
+            # Calculate max_new_tokens after truncation
             if state['auto_max_new_tokens']:
                 max_new_tokens = state['truncation_length'] - ids[0].shape[-1]
             else:
                 max_new_tokens = state['max_new_tokens']
 
             self.generator.gen_begin(ids, mask=mask)
-            initial_len = self.generator.sequence[0].shape[0]
-            has_leading_space = False
 
             for i in range(max_new_tokens):
                 logits = self.model.forward(self.generator.sequence[:, -1:], self.cache, input_mask=mask)
